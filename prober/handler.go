@@ -119,6 +119,26 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 		}
 	}
 
+	status_codes := params.Get("status_codes")
+	if module.Prober == "http" && len(status_codes) != 0 {
+		var validStatusCodes []int
+		items := strings.Split(status_codes, ",")
+
+		for _, item := range items {
+			num, err := strconv.Atoi(item)
+			if err != nil {
+				fmt.Printf("Error converting url param status_codes item %s to int: %v\n", item, err)
+				continue
+			}
+			validStatusCodes = append(validStatusCodes, num)
+		}
+		err = setValidStatusCodes(validStatusCodes, &module)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	if module.Prober == "tcp" && hostname != "" {
 		if module.TCP.TLSConfig.ServerName == "" {
 			module.TCP.TLSConfig.ServerName = hostname
@@ -177,6 +197,14 @@ func setFailIfBodyNotMatchesRegexp(failIfBodyNotMatchesRegexp []config.Regexp, m
 		return fmt.Errorf("fail_if_body_not_matches_regexp is defined both in module configuration and with URL-parameter 'body_matches' (%s)", failIfBodyNotMatchesRegexp)
 	}
 	module.HTTP.FailIfBodyNotMatchesRegexp = failIfBodyNotMatchesRegexp
+	return nil
+}
+
+func setValidStatusCodes(validStatusCodes []int, module *config.Module) error {
+	if module.HTTP.ValidStatusCodes != nil {
+		return fmt.Errorf("valid_status_codes is defined both in module configuration and with URL-parameter 'status_codes' (%v)", validStatusCodes)
+	}
+	module.HTTP.ValidStatusCodes = validStatusCodes
 	return nil
 }
 
