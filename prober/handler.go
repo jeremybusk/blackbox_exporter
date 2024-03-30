@@ -104,12 +104,18 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 		}
 	}
 
+	if module.Prober == "tcp" && hostname != "" {
+		if module.TCP.TLSConfig.ServerName == "" {
+			module.TCP.TLSConfig.ServerName = hostname
+		}
+	}
+
 	body_matches := params.Get("body_matches")
 	if module.Prober == "http" && len(body_matches) != 0 {
 		var failIfBodyNotMatchesRegexp []config.Regexp
 		items := strings.Split(body_matches, ",")
-		for _, item := range items {
-			regexp := config.MustNewRegexp(item)
+		for _, i := range items {
+			regexp := config.MustNewRegexp(i)
 			failIfBodyNotMatchesRegexp = append(failIfBodyNotMatchesRegexp, regexp)
 		}
 		err = setFailIfBodyNotMatchesRegexp(failIfBodyNotMatchesRegexp, &module)
@@ -124,24 +130,18 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 		var validStatusCodes []int
 		items := strings.Split(status_codes, ",")
 
-		for _, item := range items {
-			num, err := strconv.Atoi(item)
+		for _, i := range items {
+			status_code, err := strconv.Atoi(i)
 			if err != nil {
-				fmt.Printf("Error converting url param status_codes item %s to int: %v\n", item, err)
+				fmt.Printf("Error converting url param status_codes item %s to int: %v\n", i, err)
 				continue
 			}
-			validStatusCodes = append(validStatusCodes, num)
+			validStatusCodes = append(validStatusCodes, status_code)
 		}
 		err = setValidStatusCodes(validStatusCodes, &module)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
-		}
-	}
-
-	if module.Prober == "tcp" && hostname != "" {
-		if module.TCP.TLSConfig.ServerName == "" {
-			module.TCP.TLSConfig.ServerName = hostname
 		}
 	}
 
